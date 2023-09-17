@@ -147,7 +147,11 @@ export class Connection extends EventEmitter {
      */
     public async connect(): Promise<void> {
         this.state = State.CONNECTING;
-        this.send({ guild_id: this.guildId, channel_id: this.channelId, self_deaf: this.deafened, self_mute: this.muted });
+        // Maybe it will fix "The voice connection is not established in 15 seconds" issue.
+        // The theory is that reply from Discord comes before the event handler is set. Maybe it happens under high load of bot worker
+        setTimeout(() => {
+            this.send({ guild_id: this.guildId, channel_id: this.channelId, self_deaf: this.deafened, self_mute: this.muted });
+        }, 200);
         this.debug(`[Voice] -> [Discord] : Requesting Connection | Guild: ${this.guildId}`);
 
         const controller = new AbortController();
