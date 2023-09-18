@@ -151,7 +151,7 @@ export class Connection extends EventEmitter {
         // The theory is that reply from Discord comes before the event handler is set. Maybe it happens under high load of bot worker
         setTimeout(() => {
             this.send({ guild_id: this.guildId, channel_id: this.channelId, self_deaf: this.deafened, self_mute: this.muted });
-        }, 200);
+        }, 500);
         this.debug(`[Voice] -> [Discord] : Requesting Connection | Guild: ${this.guildId}`);
 
         const controller = new AbortController();
