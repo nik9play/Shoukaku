@@ -333,7 +333,7 @@ export class Rest {
             if (!response?.message)
                 throw new Error(`Rest request failed with response code: ${request.status}`);
             else {
-                this.node.emit('restError', response);
+                this.node.emit('restError', { response });
                 throw new Error(`Rest request failed with response code: ${request.status} | message: ${response.message}`);
             }
         }
