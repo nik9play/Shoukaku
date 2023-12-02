@@ -332,8 +332,10 @@ export class Rest {
                 .catch(() => null);
             if (!response?.message)
                 throw new Error(`Rest request failed with response code: ${request.status}`);
-            else
+            else {
+                this.node.emit('restError', response);
                 throw new Error(`Rest request failed with response code: ${request.status} | message: ${response.message}`);
+            }
         }
         try {
             return await request.json() as T;
