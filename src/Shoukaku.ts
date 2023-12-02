@@ -152,6 +152,11 @@ export declare interface Shoukaku {
      * @eventProperty
      */
     on(event: 'raw', listener: (name: string, json: unknown) => void): this;
+    /**
+     * Emitted when an REST error occurs
+     * @eventProperty
+     */
+    on(event: 'restError', listener: (name: string, error: any) => void): this;
     once(event: 'reconnecting', listener: (name: string, reconnectsLeft: number, reconnectInterval: number) => void): this;
     once(event: 'debug', listener: (name: string, info: string) => void): this;
     once(event: 'error', listener: (name: string, error: Error) => void): this;
@@ -159,6 +164,7 @@ export declare interface Shoukaku {
     once(event: 'close', listener: (name: string, code: number, reason: string) => void): this;
     once(event: 'disconnect', listener: (name: string, moved: boolean, count: number) => void): this;
     once(event: 'raw', listener: (name: string, json: unknown) => void): this;
+    once(event: 'restError', listener: (name: string, error: any) => void): this;
     off(event: 'reconnecting', listener: (name: string, reconnectsLeft: number, reconnectInterval: number) => void): this;
     off(event: 'debug', listener: (name: string, info: string) => void): this;
     off(event: 'error', listener: (name: string, error: Error) => void): this;
@@ -166,6 +172,7 @@ export declare interface Shoukaku {
     off(event: 'close', listener: (name: string, code: number, reason: string) => void): this;
     off(event: 'disconnect', listener: (name: string, moved: boolean, count: number) => void): this;
     off(event: 'raw', listener: (name: string, json: unknown) => void): this;
+    off(event: 'restError', listener: (name: string, error: any) => void): this;
 }
 
 /**
@@ -247,6 +254,7 @@ export class Shoukaku extends EventEmitter {
         node.on('close', (...args) => this.emit('close', node.name, ...args));
         node.on('ready', (...args) => this.emit('ready', node.name, ...args));
         node.on('raw', (...args) => this.emit('raw', node.name, ...args));
+        node.on('restError', (...args) => this.emit('restError', node.name, ...args));
         node.once('disconnect', (...args) => this.clean(node, ...args));
         node.connect();
         this.nodes.set(node.name, node);
