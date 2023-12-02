@@ -345,7 +345,7 @@ export class Node extends EventEmitter {
      * Reconnect to Lavalink
      * @internal
      */
-    private async reconnect(): Promise<void> {
+    public async reconnect(): Promise<void> {
         if (this.state === State.RECONNECTING) return;
         if (this.state !== State.DISCONNECTED) this.destroy(false);
         this.state = State.RECONNECTING;
