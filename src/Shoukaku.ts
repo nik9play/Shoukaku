@@ -93,6 +93,7 @@ export interface VoiceChannelOptions {
 	channelId: string;
 	deaf?: boolean;
 	mute?: boolean;
+	node?: Node;
 }
 
 // Interfaces are not final, but types are, and therefore has an index signature
@@ -252,7 +253,8 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			throw error;
 		}
 		try {
-			const node = this.getIdealNode(connection);
+			let node = options.node ? options.node : this.getIdealNode(connection);
+
 			if (!node)
 				throw new Error('Can\'t find any nodes to connect on');
 			const player = this.options.structures.player ? new this.options.structures.player(connection.guildId, node) : new Player(connection.guildId, node);
