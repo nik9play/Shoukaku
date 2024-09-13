@@ -1,11 +1,10 @@
 .idea
 .gitattributes
 .DS_Store
-.vscode
 node_modules/
 dist/
-docs/
 package-lock.json
+pnpm-lock.yaml
 yarn.lock
 yarn-debug.log*
 yarn-error.log*
