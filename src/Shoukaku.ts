@@ -253,7 +253,7 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			throw error;
 		}
 		try {
-			let node = options.node ? options.node : this.getIdealNode(connection);
+			const node = options.node ? options.node : this.getIdealNode(connection);
 
 			if (!node)
 				throw new Error('Can\'t find any nodes to connect on');
