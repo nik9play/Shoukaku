@@ -141,7 +141,8 @@ export class Connection extends EventEmitter {
 		if (this.state === State.CONNECTING || this.state === State.CONNECTED) return;
 
 		this.state = State.CONNECTING;
-		this.sendVoiceUpdate();
+
+		setTimeout(() => this.sendVoiceUpdate(), 500);
 		this.debug(`[Voice] -> [Discord] : Requesting Connection | Guild: ${this.guildId}`);
 
 		const controller = new AbortController();
