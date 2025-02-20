@@ -143,13 +143,12 @@ export class Connection extends EventEmitter {
 
 		this.state = State.CONNECTING;
 
-		setTimeout(() => this.sendVoiceUpdate(), 500);
-		this.debug(`[Voice] -> [Discord] : Requesting Connection | Guild: ${this.guildId}`);
-
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), this.manager.options.voiceConnectionTimeout * 1000);
 
 		try {
+			this.debug(`[Voice] -> [Discord] : Requesting Connection | Guild: ${this.guildId}`);
+			setTimeout(() => this.sendVoiceUpdate(), 0); // skip one tick to ensure that event handler is set
 			const [ status ] = await once(this, 'connectionUpdate', { signal: controller.signal }) as [ VoiceState ];
 			if (status !== VoiceState.SESSION_READY) {
 				switch (status) {
