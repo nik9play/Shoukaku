@@ -188,8 +188,8 @@ export class Node extends TypedEventEmitter<NodeEvents> {
 		penalties += Math.round(Math.pow(1.05, 100 * this.stats.cpu.systemLoad) * 10 - 10);
 
 		if (this.stats.frameStats) {
-			penalties += this.stats.frameStats.deficit;
-			penalties += this.stats.frameStats.nulled * 2;
+			penalties += Math.pow(1.03, 500 * Math.abs(this.stats.frameStats.deficit / 3000)) * 600 - 600;
+			penalties += Math.pow(1.03, 500 * Math.abs(this.stats.frameStats.nulled / 3000)) * 300 - 300;
 		}
 
 		return penalties;
