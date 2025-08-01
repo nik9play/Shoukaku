@@ -1,46 +1,24 @@
 import Info from '../package.json';
-// eslint-disable-next-line import-x/no-cycle
-import { NodeOption, ShoukakuOptions } from './Shoukaku';
-
-export enum State {
-	CONNECTING,
-	CONNECTED,
-	DISCONNECTING,
-	IDLE
-}
-
-export enum VoiceState {
-	SESSION_READY,
-	SESSION_ID_MISSING,
-	SESSION_ENDPOINT_MISSING,
-	SESSION_FAILED_UPDATE
-}
-
-export enum OpCodes {
-	PLAYER_UPDATE = 'playerUpdate',
-	STATS = 'stats',
-	EVENT = 'event',
-	READY = 'ready'
-}
+import { ConnectionState } from './model/Library';
+import type { NodeOption, OptionalOptions } from './Shoukaku';
 
 export const Versions = {
 	REST_VERSION: 4,
 	WEBSOCKET_VERSION: 4
 };
 
-export const ShoukakuDefaults: Required<ShoukakuOptions> = {
+export const ShoukakuDefaults: Required<OptionalOptions> = {
 	resume: false,
 	resumeTimeout: 30,
-	resumeByLibrary: false,
 	reconnectTries: 3,
 	reconnectInterval: 5,
 	restTimeout: 60,
-	moveOnDisconnect: false,
+	moveOnDisconnect: true,
 	userAgent: 'Discord Bot/unknown (https://github.com/shipgirlproject/Shoukaku.git)',
 	structures: {},
 	voiceConnectionTimeout: 15,
 	nodeResolver: (nodes) => [ ...nodes.values() ]
-		.filter(node => node.state === State.CONNECTED)
+		.filter(node => node.state === ConnectionState.Connected)
 		.sort((a, b) => a.penalties - b.penalties)
 		.shift()
 };

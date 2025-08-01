@@ -1,42 +1,23 @@
-## Supported Libs
+## In order to use Shoukaku, you need to provide a connector option to shoukaku. See Connector.ts for more info
 
-> [Discord.JS](https://discord.js.org/#/) (v13.x.x & 14.x.x)
+### There are already pre-made options for the ff, which are also exported at Connector.ts
 
-```js
-const { Shoukaku, Connectors } = require('shoukaku');
-new Shoukaku(new Connectors.DiscordJS(client), servers, options);
-```
+> [Discord.JS](https://discord.js.org/#/)
 
-> [Eris](https://abal.moe/Eris/) (0.15.x / 0.16.x / 0.17.x)
-
-```js
-const { Shoukaku, Connectors } = require('shoukaku');
-new Shoukaku(new Connectors.Eris(client), servers, options)
-```
+> [Eris](https://abal.moe/Eris/)
 
 > [Oceanic.JS](https://oceanic.ws/) (1.0.x)
 
-```js
-const { Shoukaku, Connectors } = require('shoukaku');
-new Shoukaku(new Connectors.OceanicJS(client), servers, options)
-```
-
 > [Seyfert](https://seyfert-docs.vercel.app/) (0.1.x)
-
-```js
-const { Shoukaku, Connectors } = require('shoukaku');
-new Shoukaku(new Connectors.Seyfert(client), servers, options)
-```
-
 
 > Implement your own 
 
 ## Implementing your own
 
-> Check **DiscordJS.ts** or **Eris.ts** inside libs folder for a detailed explanation on how to support a library
+> Check **Connector.ts** for an idea on how to support a library
 
 > And Submit a PR so other people don't need to do it themselves, yay!
 
 ## Support
 
-For questions on how to do so, just ask at my support server at [HERE](https://discord.gg/FVqbtGu) (#Development)
+For questions on how to do so, just ask at my support server at [HERE](https://discord.gg/FVqbtGu)

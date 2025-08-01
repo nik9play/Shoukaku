@@ -1,7 +1,8 @@
 import { EventEmitter, once } from 'node:events';
-// eslint-disable-next-line import-x/no-cycle
-import { State, VoiceState } from '../Constants';
-import { Shoukaku, VoiceChannelOptions } from '../Shoukaku';
+import { ConnectionError, ConnectionConnectTimeout } from '../model/Errors';
+import { ConnectionState, Events, VoiceState } from '../model/Library';
+import type { Node } from '../node/Node';
+import type { Shoukaku, VoiceChannelOptions } from '../Shoukaku';
 
 /**
  * Represents the partial payload from a stateUpdate event
@@ -51,10 +52,6 @@ export class Connection extends EventEmitter {
 	 */
 	public deafened: boolean;
 	/**
-	 * Id of the voice channel where this instance was connected before the current channelId
-	 */
-	public lastChannelId: string | null;
-	/**
 	 * Id of the currently active voice channel connection
 	 */
 	public sessionId: string | null;
@@ -63,17 +60,13 @@ export class Connection extends EventEmitter {
 	 */
 	public region: string | null;
 	/**
-	 * Last region of the connected voice channel
-	 */
-	public lastRegion: string | null;
-	/**
 	 * Cached serverUpdate event from Lavalink
 	 */
 	public serverUpdate: ServerUpdate | null;
 	/**
 	 * Connection state
 	 */
-	public state: State;
+	public state: ConnectionState;
 	/**
 	 * @param manager The manager of this connection
 	 * @param options The options to pass in connection creation
@@ -91,17 +84,20 @@ export class Connection extends EventEmitter {
 		this.shardId = options.shardId;
 		this.muted = options.mute ?? false;
 		this.deafened = options.deaf ?? false;
-		this.lastChannelId = null;
 		this.sessionId = null;
 		this.region = null;
-		this.lastRegion = null;
 		this.serverUpdate = null;
-		this.state = State.IDLE;
+		this.state = ConnectionState.Disconnected;
+	}
+
+	public getNode(): Node | undefined {
+		return this.manager.nodes
+			.find(node => node.connections.has(this));
 	}
 
 	/**
 	 * Set the deafen status for the current bot user
-	 * @param deaf Boolean value to indicate whether to deafen or undeafen
+	 * @param deaf Boolean value to indicate whether to deafen or un-deafen
 	 * @defaultValue false
 	 */
 	public setDeaf(deaf = false): void {
@@ -124,13 +120,17 @@ export class Connection extends EventEmitter {
 	 * @internal
 	 */
 	public disconnect(): void {
-		if (this.state === State.IDLE) return;
+		if (this.state === ConnectionState.Disconnected) return;
+
 		this.channelId = null;
 		this.deafened = false;
 		this.muted = false;
+
 		this.removeAllListeners();
 		this.sendVoiceUpdate();
-		this.state = State.IDLE;
+
+		this.state = ConnectionState.Disconnected;
+
 		this.debug(`[Voice] -> [Node] & [Discord] : Connection Destroyed | Guild: ${this.guildId}`);
 	}
 
@@ -139,9 +139,9 @@ export class Connection extends EventEmitter {
 	 * @internal
 	 */
 	public async connect(): Promise<void> {
-		if (this.state === State.CONNECTING || this.state === State.CONNECTED) return;
+		if (this.state !== ConnectionState.Disconnected) return;
 
-		this.state = State.CONNECTING;
+		this.state = ConnectionState.Connecting;
 
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), this.manager.options.voiceConnectionTimeout * 1000);
@@ -150,18 +150,21 @@ export class Connection extends EventEmitter {
 			this.debug(`[Voice] -> [Discord] : Requesting Connection | Guild: ${this.guildId}`);
 			setTimeout(() => this.sendVoiceUpdate(), 0); // skip one tick to ensure that event handler is set
 			const [ status ] = await once(this, 'connectionUpdate', { signal: controller.signal }) as [ VoiceState ];
-			if (status !== VoiceState.SESSION_READY) {
-				switch (status) {
-					case VoiceState.SESSION_ID_MISSING: throw new Error('The voice connection is not established due to missing session id');
-					case VoiceState.SESSION_ENDPOINT_MISSING: throw new Error('The voice connection is not established due to missing connection endpoint');
-				}
-			}
-			this.state = State.CONNECTED;
+
+			if (status !== VoiceState.SessionReady)
+				throw new ConnectionError(status);
+
+			this.state = ConnectionState.Connected;
 		} catch (e: unknown) {
+			this.state = ConnectionState.Disconnected;
+
 			const error = e as Error;
+
 			this.debug(`[Voice] </- [Discord] : Request Connection Failed | Guild: ${this.guildId}`);
+
 			if (error.name === 'AbortError')
-				throw new Error(`The voice connection is not established in ${this.manager.options.voiceConnectionTimeout} seconds`);
+				throw new ConnectionConnectTimeout(this.manager.options.voiceConnectionTimeout);
+
 			throw error;
 		} finally {
 			clearTimeout(timeout);
@@ -178,21 +181,22 @@ export class Connection extends EventEmitter {
 	 * @internal
 	 */
 	public setStateUpdate({ session_id, channel_id, self_deaf, self_mute }: StateUpdatePartial): void {
-		this.lastChannelId = this.channelId?.repeat(1) ?? null;
-		this.channelId = channel_id ?? null;
-
-		if (this.channelId && this.lastChannelId !== this.channelId) {
+		if (channel_id && channel_id !== this.channelId) {
 			this.debug(`[Voice] <- [Discord] : Channel Moved | Old Channel: ${this.channelId} Guild: ${this.guildId}`);
 		}
 
+		this.channelId = channel_id ?? null;
+
 		if (!this.channelId) {
-			this.state = State.IDLE;
+			this.state = ConnectionState.Disconnected;
 			this.debug(`[Voice] <- [Discord] : Channel Disconnected | Guild: ${this.guildId}`);
+			this.manager.leaveVoiceChannel(this.guildId);
 		}
 
 		this.deafened = self_deaf;
 		this.muted = self_mute;
 		this.sessionId = session_id ?? null;
+
 		this.debug(`[Voice] <- [Discord] : State Update Received | Channel: ${this.channelId} Session ID: ${session_id} Guild: ${this.guildId}`);
 	}
 
@@ -202,48 +206,71 @@ export class Connection extends EventEmitter {
 	 */
 	public setServerUpdate(data: ServerUpdate): void {
 		if (!data.endpoint) {
-			this.emit('connectionUpdate', VoiceState.SESSION_ENDPOINT_MISSING);
-			return;
+			this.debug(`[Voice] <- [Discord] : Received a voice server update without an endpoint! Data => ${JSON.stringify(data)}`);
+
+			return void this.emit('connectionUpdate', VoiceState.SessionEndpointMissing);
 		}
 		if (!this.sessionId) {
-			this.emit('connectionUpdate', VoiceState.SESSION_ID_MISSING);
-			return;
+			this.debug(`[Voice] <- [Discord] : Received a voice server update without an session id! Data => ${JSON.stringify(data)}`);
+
+			return void this.emit('connectionUpdate', VoiceState.SessionIdMissing);
 		}
 
-		this.lastRegion = this.region?.repeat(1) ?? null;
-		this.region = data.endpoint.split('.').shift()?.replace(/[0-9]/g, '') ?? null;
+		const region = data.endpoint.split('.').shift()?.replace(/[0-9]/g, '');
 
-		if (this.region && this.lastRegion !== this.region) {
-			this.debug(`[Voice] <- [Discord] : Voice Region Moved | Old Region: ${this.lastRegion} New Region: ${this.region} Guild: ${this.guildId}`);
+		if (region !== this.region) {
+			this.debug(`[Voice] <- [Discord] : Voice Region Moved | Old Region: ${this.region} New Region: ${region} Guild: ${this.guildId}`);
 		}
+
+		this.region = region ?? null;
 
 		this.serverUpdate = data;
-		this.emit('connectionUpdate', VoiceState.SESSION_READY);
+
 		this.debug(`[Voice] <- [Discord] : Server Update Received | Server: ${this.region} Guild: ${this.guildId}`);
+
+		if (this.state !== ConnectionState.Connected) {
+			return void this.emit('connectionUpdate', VoiceState.SessionReady);
+		}
+
+		const node = this.getNode();
+
+		if (!node) return;
+
+		node.rest
+			.updatePlayer(this.guildId, {
+				voice: {
+					token: data.token,
+					endpoint: data.endpoint,
+					sessionId: this.sessionId
+				}
+			})
+			.catch(() => null);
 	}
 
 	/**
 	 * Send voice data to discord
 	 * @internal
 	 */
-	private sendVoiceUpdate() {
+	public sendVoiceUpdate() {
 		this.send({ guild_id: this.guildId, channel_id: this.channelId, self_deaf: this.deafened, self_mute: this.muted });
 	}
 
 	/**
 	 * Send data to Discord
 	 * @param data The data to send
+	 * @private
 	 * @internal
 	 */
 	private send(data: unknown): void {
-		this.manager.connector.sendPacket(this.shardId, { op: 4, d: data }, false);
+		this.manager.connector.sendPacket(this.shardId, { op: 4, d: data });
 	}
 
 	/**
 	 * Emits a debug log
+	 * @private
 	 * @internal
 	 */
 	private debug(message: string): void {
-		this.manager.emit('debug', this.constructor.name, message);
+		this.manager.emit(Events.Debug, message);
 	}
 }
