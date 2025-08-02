@@ -196,10 +196,11 @@ export class Node {
 			});
 		};
 
-		let error: Error;
+		let error: Error | null = null;
 
 		for (; this.reconnects < this.manager.options.reconnectTries; this.reconnects++) {
 			try {
+				error = null;
 				this.#ws = await createConnection();
 				break;
 			} catch (err) {
@@ -211,7 +212,7 @@ export class Node {
 
 		this.reconnects = 0;
 
-		if (error!) {
+		if (error) {
 			this.state = ConnectionState.Disconnected;
 
 			await this.handleOnDisconnect();
