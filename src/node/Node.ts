@@ -330,12 +330,13 @@ export class Node extends TypedEventEmitter<NodeEvents> {
      * @param reason Reason for connection close
      */
 	private async close(code: number, reason: Buffer): Promise<void> {
-		this.emit('close', code, String(reason));
+		const reasonString = String(reason)
+		this.emit('close', code, reasonString);
 		this.emit('debug', `[Socket] <-/-> [${this.name}] : Connection Closed, Code: ${code || 'Unknown Code'}`);
 
 		this.state = State.DISCONNECTING;
 
-		if (this.reconnects >= this.manager.options.reconnectTries) {
+		if (reasonString === 'Remove node executed' || this.reconnects >= this.manager.options.reconnectTries) {
 			this.sessionId = null;
 
 			let count = 0;
