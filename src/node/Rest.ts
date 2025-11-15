@@ -359,11 +359,11 @@ export class Rest {
 		return this.fetch(options);
 	}
 
-	public getLyricsByTrack(track: Track): Promise<Lyrics | undefined> {
+	public getLyricsByTrack(encodedTrack: string): Promise<Lyrics | undefined> {
 		const options = {
 			endpoint: '/lyrics',
 			options: {
-				params: { track: track.encoded }
+				params: { track: encodedTrack }
 			}
 		};
 
