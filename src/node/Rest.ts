@@ -143,6 +143,18 @@ export interface SessionInfo {
 	timeout: number;
 }
 
+export interface Lyrics {
+	sourceName: string;
+	provider: string | null;
+	text: string;
+	lines: {
+		timestamp: number;
+		duration: number | null;
+		line: string;
+		plugin: unknown;
+	}[] | null;
+}
+
 interface FetchOptions {
 	endpoint: string;
 	options: {
@@ -344,6 +356,26 @@ export class Rest {
 				headers: { 'Content-Type': 'application/json' }
 			}
 		};
+		return this.fetch(options);
+	}
+
+	public getLyricsByTrack(track: Track): Promise<Lyrics | undefined> {
+		const options = {
+			endpoint: '/lyrics',
+			options: {
+				params: { track: track.encoded }
+			}
+		};
+
+		return this.fetch(options);
+	}
+
+	public getCurrentLyrics(guildId: string): Promise<Lyrics | undefined> {
+		const options = {
+			endpoint: `/sessions/${this.sessionId}/players/${guildId}/track/lyrics`,
+			options: {}
+		};
+
 		return this.fetch(options);
 	}
 
