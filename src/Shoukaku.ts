@@ -142,6 +142,18 @@ export type ShoukakuEvents = {
 	'raw': [name: string, json: unknown];
 };
 
+export class ServerUpdateError extends Error {
+	public readonly guildId: string;
+	public readonly initialError: Error | undefined;
+
+	constructor(guildId: string, err?: Error) {
+		super('Failed to send server update to node');
+		this.guildId = guildId;
+		this.initialError = err;
+		this.name = 'ServerUpdateError';
+	}
+}
+
 /**
  * Main Shoukaku class
  */
@@ -265,7 +277,13 @@ export class Shoukaku extends TypedEventEmitter<ShoukakuEvents> {
 			const player = this.options.structures.player ? new this.options.structures.player(connection.guildId, node) : new Player(connection.guildId, node);
 			const onUpdate = (state: VoiceState) => {
 				if (state !== VoiceState.SESSION_READY) return;
-				void player.sendServerUpdate(connection);
+				player.sendServerUpdate(connection).catch(() => {
+					setTimeout(() => {
+						player.sendServerUpdate(connection).catch((err: Error) => {
+							this.emit('error', node.name, new ServerUpdateError(connection.guildId, err));
+						});
+					}, 1000);
+				});
 			};
 			await player.sendServerUpdate(connection);
 			connection.on('connectionUpdate', onUpdate);
